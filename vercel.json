@@ -1,0 +1,5 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [{ "source": "/v1/systemone", "destination": "/api/systemone" }],
+  "functions": { "api/systemone.ts": { "maxDuration": 60 } }
+}

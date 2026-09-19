@@ -2,16 +2,17 @@
 // CLI shell: reads a JEV request (file or stdin), writes the JEV response to stdout.
 
 import { readFile } from "node:fs/promises";
-import { homedir } from "node:os";
-import { join } from "node:path";
-import { adapt } from "./adapter.mjs";
+import { adapt } from "./adapter.ts";
+import { errorMessage } from "./guards.ts";
+import { ensureNodeEnv, resolveNodeOptions } from "./node-env.ts";
 
-function usage() {
-  return "usage: ds2jev [--pretty] [--thinking <low|high|max>] [file]  (reads stdin when file is omitted)";
-}
+const USAGE =
+  "usage: ds2jev [--pretty] [--thinking <low|high|max>] [file]  (reads stdin when file is omitted)";
 
-function parseArgs(argv) {
-  const opts = { pretty: false, thinking: undefined, file: undefined };
+type CliOptions = { pretty: boolean; thinking?: string; file?: string; help?: boolean };
+
+function parseArgs(argv: string[]): CliOptions {
+  const opts: CliOptions = { pretty: false, thinking: undefined, file: undefined };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === "--pretty") opts.pretty = true;
@@ -29,41 +30,35 @@ function parseArgs(argv) {
   return opts;
 }
 
-async function readInput(file) {
+async function readInput(file?: string): Promise<string> {
   if (file) return readFile(file, "utf8");
-  const chunks = [];
+  const chunks: Uint8Array[] = [];
   for await (const chunk of process.stdin) chunks.push(chunk);
   return Buffer.concat(chunks).toString("utf8");
 }
 
-async function main() {
+async function main(): Promise<void> {
   const opts = parseArgs(process.argv.slice(2));
   if (opts.help) {
-    process.stdout.write(`${usage()}\n`);
+    process.stdout.write(`${USAGE}\n`);
     return;
   }
 
-  if (!process.env.DEEPSEEK_API_KEY) {
-    try {
-      process.loadEnvFile(join(homedir(), ".env.local"));
-    } catch {
-      // no local env file; adapt() will report the missing key
-    }
-  }
+  ensureNodeEnv();
 
   const raw = await readInput(opts.file);
-  let request;
+  let request: unknown;
   try {
     request = JSON.parse(raw);
   } catch (err) {
-    throw new Error(`invalid request json: ${err.message}`);
+    throw new Error(`invalid request json: ${errorMessage(err)}`);
   }
 
-  const response = await adapt(request, { thinking: opts.thinking });
+  const response = await adapt(request, { thinking: opts.thinking, ...resolveNodeOptions() });
   process.stdout.write(`${JSON.stringify(response, null, opts.pretty ? 2 : 0)}\n`);
 }
 
 main().catch((err) => {
-  process.stderr.write(`ds2jev: ${err.message}\n`);
+  process.stderr.write(`ds2jev: ${errorMessage(err)}\n`);
   process.exit(1);
 });

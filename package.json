@@ -3,19 +3,34 @@
   "version": "0.1.0",
   "description": "DeepSeek-Flash adapter for JEV (TypeSafe System One) requests",
   "type": "module",
+  "private": true,
   "engines": {
-    "node": ">=20.12"
+    "node": ">=22.18"
   },
   "bin": {
-    "ds2jev": "src/cli.mjs"
+    "ds2jev": "src/cli.ts"
   },
   "scripts": {
-    "test": "node --test \"test/**/*.test.mjs\""
+    "test": "node --test \"test/**/*.test.ts\"",
+    "typecheck": "tsc -p tsconfig.json",
+    "lint": "oxlint src test worker api",
+    "format": "oxfmt src test worker api vite.config.ts",
+    "format:check": "oxfmt --check src test worker api vite.config.ts",
+    "start": "node src/serve.ts",
+    "dev": "wrangler dev",
+    "build:cf": "DS2JEV_TARGET=worker vite build",
+    "build:docker": "DS2JEV_TARGET=node vite build --ssr src/serve.ts --outDir dist/node",
+    "deploy:cf": "npm run build:cf && wrangler deploy -c dist/ds2jev/wrangler.json",
+    "docker:build": "docker build -t ds2jev .",
+    "docker:run": "docker run --rm -p 8787:8787 -e DEEPSEEK_API_KEY ds2jev"
   },
-  "files": [
-    "src",
-    "README.md"
-  ],
-  "license": "MIT",
-  "private": true
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "1.55.0",
+    "@types/node": "^24.13.6",
+    "oxfmt": "^0.68.0",
+    "oxlint": "^1.83.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.0",
+    "wrangler": "^4.134.0"
+  }
 }
