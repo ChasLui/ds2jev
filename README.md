@@ -65,7 +65,7 @@ Cloudflare 本地用 `.dev.vars`，Vercel 用项目环境变量，Docker 用 `-e
 
 ## 技术栈
 
-TypeScript（`tsc 7` 仅类型检查：`npm run typecheck`；测试与运行由 Node 原生剥离直接跑 `.ts`）、Vite 8（Rolldown）构建 CF / Node 产物、oxlint + oxfmt 做 lint / 格式化。
+TypeScript（`tsc 7` 仅类型检查：`npm run typecheck`；运行时由 Node 原生剥离直接跑 `.ts`）、Vitest 5 跑单测与 V8 覆盖率、Vite 8（Rolldown）构建 CF / Node 产物、oxlint（pedantic 类别全开 + `denyWarnings`）+ oxfmt 做 lint / 格式化。
 
 ## 支持的询问类型
 
@@ -107,7 +107,9 @@ TypeScript（`tsc 7` 仅类型检查：`npm run typecheck`；测试与运行由 
 ## 测试
 
 ```bash
-npm test           # 离线单测（node --test，无网络）
-npm run typecheck  # tsc 7 类型检查
-npm run lint       # oxlint
+npm test               # Vitest 单测（离线，无网络）
+npm run test:coverage  # 覆盖率门槛：lines/statements/functions ≥ 90%，branches ≥ 70%
+npm run typecheck      # tsc 7 严格类型检查
+npm run lint           # oxlint（pedantic 全开，warnings 视为失败）
+npm run format:check   # oxfmt 格式检查
 ```

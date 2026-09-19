@@ -8,10 +8,10 @@ export default {
     if (url.pathname !== "/v1/systemone") {
       return Response.json({ error: { message: "not found" } }, { status: 404 });
     }
-    return handleRequest(request, {
-      apiKey: env.DEEPSEEK_API_KEY,
-      baseUrl: env.DEEPSEEK_BASE_URL,
-      model: env.DEEPSEEK_MODEL,
+    return await handleRequest(request, {
+      apiKey: env["DEEPSEEK_API_KEY"],
+      baseUrl: env["DEEPSEEK_BASE_URL"],
+      model: env["DEEPSEEK_MODEL"],
     });
   },
 };

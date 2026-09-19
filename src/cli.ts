@@ -9,16 +9,23 @@ import { ensureNodeEnv, resolveNodeOptions } from "./node-env.ts";
 const USAGE =
   "usage: ds2jev [--pretty] [--thinking <low|high|max>] [file]  (reads stdin when file is omitted)";
 
-type CliOptions = { pretty: boolean; thinking?: string; file?: string; help?: boolean };
+type CliOptions = {
+  pretty: boolean;
+  thinking?: string | undefined;
+  file?: string | undefined;
+  help?: boolean | undefined;
+};
 
 function parseArgs(argv: string[]): CliOptions {
-  const opts: CliOptions = { pretty: false, thinking: undefined, file: undefined };
+  const opts: CliOptions = { pretty: false };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
+    if (arg === undefined) continue;
     if (arg === "--pretty") opts.pretty = true;
     else if (arg === "--thinking") {
-      opts.thinking = argv[++i];
-      if (!opts.thinking) throw new Error("--thinking requires a level");
+      const level = argv[++i];
+      if (!level) throw new Error("--thinking requires a level");
+      opts.thinking = level;
     } else if (arg === "--help" || arg === "-h") {
       opts.help = true;
     } else if (arg.startsWith("--")) {
@@ -51,14 +58,16 @@ async function main(): Promise<void> {
   try {
     request = JSON.parse(raw);
   } catch (err) {
-    throw new Error(`invalid request json: ${errorMessage(err)}`);
+    throw new Error(`invalid request json: ${errorMessage(err)}`, { cause: err });
   }
 
   const response = await adapt(request, { thinking: opts.thinking, ...resolveNodeOptions() });
   process.stdout.write(`${JSON.stringify(response, null, opts.pretty ? 2 : 0)}\n`);
 }
 
-main().catch((err) => {
+try {
+  await main();
+} catch (err) {
   process.stderr.write(`ds2jev: ${errorMessage(err)}\n`);
   process.exit(1);
-});
+}

@@ -5,9 +5,9 @@ import { handleRequest } from "../src/http.ts";
 export default {
   fetch(request: Request): Promise<Response> {
     return handleRequest(request, {
-      apiKey: process.env.DEEPSEEK_API_KEY,
-      baseUrl: process.env.DEEPSEEK_BASE_URL,
-      model: process.env.DEEPSEEK_MODEL,
+      apiKey: process.env["DEEPSEEK_API_KEY"],
+      baseUrl: process.env["DEEPSEEK_BASE_URL"],
+      model: process.env["DEEPSEEK_MODEL"],
     });
   },
 };

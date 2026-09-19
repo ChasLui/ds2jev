@@ -1,8 +1,7 @@
-import test from "node:test";
-import assert from "node:assert/strict";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { adapt } from "../src/adapter.ts";
 import type { JevRequest } from "../src/format.ts";
-import { isRecord, statusOf } from "../src/guards.ts";
+import { isRecord } from "../src/guards.ts";
 
 const request: JevRequest = {
   state: "x",
@@ -30,88 +29,88 @@ function readBody(init: RequestInit | undefined): Record<string, unknown> {
   return parsed;
 }
 
-test("sends json_object response_format and disabled thinking", async () => {
-  let body: Record<string, unknown> | undefined;
-  const fetchStub: typeof fetch = async (_url, init) => {
-    body = readBody(init);
-    return jsonResponse(200, okPayload);
-  };
-  const res = await adapt(request, { apiKey: "k", fetch: fetchStub });
-  assert.deepEqual(body?.response_format, { type: "json_object" });
-  assert.deepEqual(body?.thinking, { type: "disabled" });
-  assert.deepEqual(res.answers.q, { type: "noul", noul: 0.7 });
-  assert.deepEqual(res.usage, { input_tokens: 10, output_tokens: 5 });
-});
+describe("adapt request shape", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
 
-test("thinking level switches to reasoning_effort without thinking field", async () => {
-  let body: Record<string, unknown> | undefined;
-  const fetchStub: typeof fetch = async (_url, init) => {
-    body = readBody(init);
-    return jsonResponse(200, okPayload);
-  };
-  await adapt(request, { apiKey: "k", thinking: "high", fetch: fetchStub });
-  assert.equal(body?.reasoning_effort, "high");
-  assert.equal(body?.thinking, undefined);
-});
-
-test("retries after 429 then succeeds", async () => {
-  let calls = 0;
-  const fetchStub: typeof fetch = async () => {
-    calls++;
-    if (calls === 1) return jsonResponse(429, { error: "rate limited" });
-    return jsonResponse(200, okPayload);
-  };
-  const res = await adapt(request, { apiKey: "k", fetch: fetchStub });
-  assert.equal(calls, 2);
-  assert.deepEqual(res.answers.q, { type: "noul", noul: 0.7 });
-});
-
-test("retries after unusable output then succeeds", async () => {
-  let calls = 0;
-  const fetchStub: typeof fetch = async () => {
-    calls++;
-    if (calls === 1) {
-      return jsonResponse(200, {
-        ...okPayload,
-        choices: [{ message: { content: "not json at all" } }],
-      });
-    }
-    return jsonResponse(200, okPayload);
-  };
-  const res = await adapt(request, { apiKey: "k", fetch: fetchStub });
-  assert.equal(calls, 2);
-  assert.deepEqual(res.answers.q, { type: "noul", noul: 0.7 });
-});
-
-test("throws after three failed attempts", async () => {
-  let calls = 0;
-  const fetchStub: typeof fetch = async () => {
-    calls++;
-    return jsonResponse(200, {
-      ...okPayload,
-      choices: [{ message: { content: "still not json" } }],
+  it("sends json_object response_format and disabled thinking", async () => {
+    const fetchStub = vi.fn<typeof fetch>();
+    fetchStub.mockResolvedValue(jsonResponse(200, okPayload));
+    const res = await adapt(request, { apiKey: "k", fetch: fetchStub });
+    expect(readBody(fetchStub.mock.calls[0]?.[1])).toMatchObject({
+      response_format: { type: "json_object" },
+      thinking: { type: "disabled" },
     });
-  };
-  await assert.rejects(
-    () => adapt(request, { apiKey: "k", fetch: fetchStub }),
-    (err) => statusOf(err) === 502,
-  );
-  assert.equal(calls, 3);
+    expect(res.answers["q"]).toEqual({ type: "noul", noul: 0.7 });
+    expect(res.usage).toEqual({ input_tokens: 10, output_tokens: 5 });
+  });
+
+  it("thinking level switches to reasoning_effort without thinking field", async () => {
+    const fetchStub = vi.fn<typeof fetch>();
+    fetchStub.mockResolvedValue(jsonResponse(200, okPayload));
+    await adapt(request, { apiKey: "k", thinking: "high", fetch: fetchStub });
+    const body = readBody(fetchStub.mock.calls[0]?.[1]);
+    expect(body).toMatchObject({ reasoning_effort: "high" });
+    expect(body).not.toHaveProperty("thinking");
+  });
 });
 
-test("hard upstream error fails fast without retry", async () => {
-  let calls = 0;
-  const fetchStub: typeof fetch = async () => {
-    calls++;
-    return jsonResponse(401, { error: "bad key" });
-  };
-  await assert.rejects(() => adapt(request, { apiKey: "k", fetch: fetchStub }), /401/);
-  assert.equal(calls, 1);
+describe("adapt retry policy", () => {
+  it("retries after 429 then succeeds", async () => {
+    vi.useFakeTimers();
+    const fetchStub = vi.fn<typeof fetch>();
+    fetchStub
+      .mockResolvedValueOnce(jsonResponse(429, { error: "rate limited" }))
+      .mockResolvedValueOnce(jsonResponse(200, okPayload));
+    const pending = adapt(request, { apiKey: "k", fetch: fetchStub });
+    await vi.runAllTimersAsync();
+    const res = await pending;
+    expect(fetchStub).toHaveBeenCalledTimes(2);
+    expect(res.answers["q"]).toEqual({ type: "noul", noul: 0.7 });
+  });
+
+  it("retries after unusable output then succeeds", async () => {
+    const fetchStub = vi.fn<typeof fetch>();
+    fetchStub
+      .mockResolvedValueOnce(
+        jsonResponse(200, {
+          ...okPayload,
+          choices: [{ message: { content: "not json at all" } }],
+        }),
+      )
+      .mockResolvedValueOnce(jsonResponse(200, okPayload));
+    const res = await adapt(request, { apiKey: "k", fetch: fetchStub });
+    expect(fetchStub).toHaveBeenCalledTimes(2);
+    expect(res.answers["q"]).toEqual({ type: "noul", noul: 0.7 });
+  });
 });
 
-test("missing api key throws with status 500", async () => {
-  await assert.rejects(
-    () => adapt(request, { apiKey: "" }),
-    (err) => statusOf(err) === 500,
-  );
+describe("adapt failures", () => {
+  it("throws after three failed attempts", async () => {
+    const fetchStub = vi.fn<typeof fetch>();
+    fetchStub.mockResolvedValue(
+      jsonResponse(200, {
+        ...okPayload,
+        choices: [{ message: { content: "still not json" } }],
+      }),
+    );
+    await expect(adapt(request, { apiKey: "k", fetch: fetchStub })).rejects.toThrow(
+      expect.objectContaining({ status: 502 }),
+    );
+    expect(fetchStub).toHaveBeenCalledTimes(3);
+  });
+
+  it("hard upstream error fails fast without retry", async () => {
+    const fetchStub = vi.fn<typeof fetch>();
+    fetchStub.mockResolvedValue(jsonResponse(401, { error: "bad key" }));
+    await expect(adapt(request, { apiKey: "k", fetch: fetchStub })).rejects.toThrow(/401/u);
+    expect(fetchStub).toHaveBeenCalledTimes(1);
+  });
+
+  it("missing api key throws with status 500", async () => {
+    await expect(adapt(request, { apiKey: "" })).rejects.toThrow(
+      expect.objectContaining({ status: 500 }),
+    );
+  });
 });

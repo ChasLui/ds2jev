@@ -29,12 +29,10 @@ const server = createServer(async (req, res) => {
 
   const method = req.method ?? "GET";
   const rawBody = method === "POST" ? await readBody(req) : undefined;
-  const request = new Request(url, {
-    method,
-    headers,
-    // Copy into an ArrayBuffer-backed view: BodyInit rejects Uint8Array<ArrayBufferLike> (SharedArrayBuffer).
-    body: rawBody ? new Uint8Array(rawBody) : undefined,
-  });
+  const init: RequestInit = { method, headers };
+  // Copy into an ArrayBuffer-backed view: BodyInit rejects Uint8Array<ArrayBufferLike> (SharedArrayBuffer).
+  if (rawBody) init.body = new Uint8Array(rawBody);
+  const request = new Request(url, init);
 
   const response = await handleRequest(request, resolveNodeOptions());
   res.writeHead(response.status, { "content-type": "application/json" });
@@ -42,8 +40,8 @@ const server = createServer(async (req, res) => {
 });
 
 ensureNodeEnv();
-const port = Number(process.env.PORT ?? 8787);
-const host = process.env.HOST ?? "127.0.0.1";
+const port = Number(process.env["PORT"] ?? 8787);
+const host = process.env["HOST"] ?? "127.0.0.1";
 server.listen(port, host, () => {
   process.stdout.write(`ds2jev listening on http://${host}:${port}\n`);
 });

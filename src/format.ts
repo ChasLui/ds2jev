@@ -28,7 +28,7 @@ export type JevAnswer =
     };
 
 export type JevResponse = {
-  model?: string;
+  model?: string | undefined;
   answers: Record<string, JevAnswer>;
   usage: { input_tokens: number; output_tokens: number };
 };
@@ -73,18 +73,18 @@ export function validateRequest(request: unknown): JevRequest {
   for (const id of ids) {
     const q: unknown = questions[id];
     if (!isRecord(q)) throw badRequest(`question ${id}: must be an object`);
-    const type = q.type;
+    const type = q["type"];
     if (typeof type !== "string" || SUPPORTED_TYPES[type] !== true) {
       throw badRequest(`unsupported question type: ${type}`);
     }
     if (type === "score") {
-      const criteria = q.criteria;
+      const criteria = q["criteria"];
       if (!Array.isArray(criteria) || criteria.length < 2) {
         throw badRequest(`question ${id}: score criteria must be an array of length >= 2`);
       }
     }
     if (type === "choice") {
-      const criteria = q.criteria;
+      const criteria = q["criteria"];
       if (!isRecord(criteria)) {
         throw badRequest(`question ${id}: choice criteria must be an object`);
       }
@@ -129,7 +129,7 @@ function renderQuestion(id: string, q: JevQuestion): string {
   return lines.join("\n");
 }
 
-export function buildMessages(request: JevRequest): ChatMessage[] {
+export function buildMessages(request: JevRequest): [ChatMessage, ChatMessage] {
   const blocks = Object.entries(request.questions).map(([id, q]) => renderQuestion(id, q));
   const user = `State:\n${serializeEntry(request.state)}\n\nQuestions:\n${blocks.join("\n\n")}`;
   return [
@@ -146,8 +146,9 @@ function extractJson(text: unknown): Record<string, unknown> | null {
   const attempts = [text];
 
   // Strip markdown fences if present.
-  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/);
-  if (fenced) attempts.push(fenced[1].trim());
+  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/u);
+  const fencedBody = fenced?.[1];
+  if (fencedBody !== undefined) attempts.push(fencedBody.trim());
 
   // Balance-scan from the first "{" as a last resort.
   const start = text.indexOf("{");
@@ -198,7 +199,7 @@ function readProbability(value: unknown): number | null {
 }
 
 function convertBoolean(q: JevQuestion, answer: Record<string, unknown>, id: string): JevAnswer {
-  const raw = answer.noul !== undefined ? answer.noul : answer.probability;
+  const raw = answer["noul"] === undefined ? answer["probability"] : answer["noul"];
   const p = readProbability(raw);
   if (p === null) throw new Error(`${id}: boolean answer must be a probability in [0,1]`);
   return q.type === "noul" ? { type: "noul", noul: p } : { type: "boolean", probability: p };
@@ -209,23 +210,22 @@ type ScoreQuestion = Extract<JevQuestion, { type: "score" }>;
 
 function convertChoice(q: ChoiceQuestion, answer: Record<string, unknown>, id: string): JevAnswer {
   const keys = Object.keys(q.criteria);
-  if (typeof answer.choice !== "string" || !keys.includes(answer.choice)) {
-    throw new Error(
-      `${id}: choice ${JSON.stringify(answer.choice)} is not one of the criteria keys`,
-    );
+  const choice = answer["choice"];
+  if (typeof choice !== "string" || !keys.includes(choice)) {
+    throw new Error(`${id}: choice ${JSON.stringify(choice)} is not one of the criteria keys`);
   }
-  const source = answer.probabilities;
+  const source = answer["probabilities"];
   if (!isRecord(source)) throw new Error(`${id}: choice probabilities must be an object`);
   const raw = keys.map((key) => readProbability(source[key]) ?? 0);
   const normalized = normalizeDistribution(raw);
   if (normalized === null) throw new Error(`${id}: choice probabilities sum to zero`);
   const probabilities: Record<string, number> = {};
   keys.forEach((key, i) => {
-    probabilities[key] = normalized[i];
+    probabilities[key] = normalized[i] ?? 0;
   });
   return {
     type: "choice",
-    choice: answer.choice,
+    choice,
     confidence: Math.max(...normalized),
     probabilities,
   };
@@ -233,11 +233,11 @@ function convertChoice(q: ChoiceQuestion, answer: Record<string, unknown>, id: s
 
 function convertScore(q: ScoreQuestion, answer: Record<string, unknown>, id: string): JevAnswer {
   const n = q.criteria.length;
-  const source = answer.probabilities;
+  const source = answer["probabilities"];
   if (!isRecord(source)) throw new Error(`${id}: score probabilities must be an object`);
   const raw: number[] = [];
   for (let i = 0; i < n; i++) {
-    const value = source[i] !== undefined ? source[i] : source[String(i)];
+    const value = source[i] === undefined ? source[String(i)] : source[i];
     raw.push(readProbability(value) ?? 0);
   }
   const normalized = normalizeDistribution(raw);
@@ -264,7 +264,7 @@ function convertScore(q: ScoreQuestion, answer: Record<string, unknown>, id: str
 export function toJevResponse(rawText: unknown, request: JevRequest, usage?: unknown): JevResponse {
   const parsed = extractJson(rawText);
   if (parsed === null) throw new Error("could not extract a json object from model output");
-  const answers = parsed.answers;
+  const answers = parsed["answers"];
   if (!isRecord(answers)) throw new Error("model output is missing the answers object");
   const out: Record<string, JevAnswer> = {};
   for (const [id, q] of Object.entries(request.questions)) {
@@ -275,9 +275,10 @@ export function toJevResponse(rawText: unknown, request: JevRequest, usage?: unk
     else out[id] = convertScore(q, answer, id);
   }
   const usageRecord = isRecord(usage) ? usage : undefined;
-  const inputRaw = usageRecord?.input_tokens ?? usageRecord?.prompt_tokens;
-  const outputRaw = usageRecord?.output_tokens ?? usageRecord?.completion_tokens;
-  const model = typeof parsed.model === "string" ? parsed.model : undefined;
+  const inputRaw = usageRecord?.["input_tokens"] ?? usageRecord?.["prompt_tokens"];
+  const outputRaw = usageRecord?.["output_tokens"] ?? usageRecord?.["completion_tokens"];
+  const rawModel = parsed["model"];
+  const model = typeof rawModel === "string" ? rawModel : undefined;
   return {
     model,
     answers: out,

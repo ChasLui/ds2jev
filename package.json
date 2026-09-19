@@ -11,26 +11,30 @@
     "ds2jev": "src/cli.ts"
   },
   "scripts": {
-    "test": "node --test \"test/**/*.test.ts\"",
+    "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json",
-    "lint": "oxlint src test worker api",
-    "format": "oxfmt src test worker api vite.config.ts",
-    "format:check": "oxfmt --check src test worker api vite.config.ts",
+    "lint": "oxlint src test worker api vite.config.ts vitest.config.ts",
+    "format": "oxfmt src test worker api vite.config.ts vitest.config.ts",
+    "format:check": "oxfmt --check src test worker api vite.config.ts vitest.config.ts",
     "start": "node src/serve.ts",
     "dev": "wrangler dev",
     "build:cf": "DS2JEV_TARGET=worker vite build",
     "build:docker": "DS2JEV_TARGET=node vite build --ssr src/serve.ts --outDir dist/node",
     "deploy:cf": "npm run build:cf && wrangler deploy -c dist/ds2jev/wrangler.json",
     "docker:build": "docker build -t ds2jev .",
-    "docker:run": "docker run --rm -p 8787:8787 -e DEEPSEEK_API_KEY ds2jev"
+    "docker:run": "docker run --rm -p 8787:8787 -e DEEPSEEK_API_KEY ds2jev",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "1.55.0",
     "@types/node": "^24.13.6",
+    "@vitest/coverage-v8": "5.0.1",
     "oxfmt": "^0.68.0",
     "oxlint": "^1.83.0",
     "typescript": "^7.0.2",
     "vite": "^8.3.0",
+    "vitest": "5.0.1",
     "wrangler": "^4.134.0"
   }
 }
