@@ -1,0 +1,21 @@
+{
+  "name": "ds2jev",
+  "version": "0.1.0",
+  "description": "DeepSeek-Flash adapter for JEV (TypeSafe System One) requests",
+  "type": "module",
+  "engines": {
+    "node": ">=20.12"
+  },
+  "bin": {
+    "ds2jev": "src/cli.mjs"
+  },
+  "scripts": {
+    "test": "node --test \"test/**/*.test.mjs\""
+  },
+  "files": [
+    "src",
+    "README.md"
+  ],
+  "license": "MIT",
+  "private": true
+}
