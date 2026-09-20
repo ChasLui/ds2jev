@@ -7,6 +7,7 @@
   "engines": {
     "node": ">=22.18"
   },
+  "packageManager": "pnpm@12.5.1",
   "bin": {
     "ds2jev": "src/cli.ts"
   },
@@ -20,7 +21,7 @@
     "dev": "wrangler dev",
     "build:cf": "DS2JEV_TARGET=worker vite build",
     "build:docker": "DS2JEV_TARGET=node vite build --ssr src/serve.ts --outDir dist/node",
-    "deploy:cf": "npm run build:cf && wrangler deploy -c dist/ds2jev/wrangler.json",
+    "deploy:cf": "pnpm run build:cf && wrangler deploy -c dist/ds2jev/wrangler.json",
     "docker:build": "docker build -t ds2jev .",
     "docker:run": "docker run --rm -p 8787:8787 -e DEEPSEEK_API_KEY -e DS2JEV_API_KEYS ds2jev",
     "test:watch": "vitest",

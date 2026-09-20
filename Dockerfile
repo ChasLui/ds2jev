@@ -1,10 +1,11 @@
 FROM node:24-bookworm-slim AS build
 WORKDIR /app
-COPY package.json package-lock.json ./
-RUN npm ci
+RUN npm config set registry https://registry.npmmirror.com && npm install -g pnpm@12.5.1
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN pnpm install --frozen-lockfile
 COPY tsconfig.json vite.config.ts ./
 COPY src ./src
-RUN npm run build:docker
+RUN pnpm run build:docker
 
 FROM node:24-bookworm-slim
 WORKDIR /app

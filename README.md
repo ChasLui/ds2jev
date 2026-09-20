@@ -22,7 +22,7 @@ CLI 直连上游，不受 HTTP 鉴权影响。
 ## HTTP 服务（Node）
 
 ```bash
-DS2JEV_API_KEYS=k1,k2 npm start        # 等价于 node src/serve.ts；PORT 可覆盖端口
+DS2JEV_API_KEYS=k1,k2 pnpm start        # 等价于 node src/serve.ts；PORT 可覆盖端口
 curl -sS -X POST http://127.0.0.1:8787/v1/systemone \
   -H 'content-type: application/json' \
   -H 'authorization: Bearer k1' --data @request.json
@@ -37,11 +37,11 @@ curl -sS -X POST http://127.0.0.1:8787/v1/systemone \
 ### Cloudflare Worker
 
 ```bash
-npm run build:cf    # 构建到 dist/ds2jev/
-npm run deploy:cf   # 构建并 wrangler deploy（需 CF 凭据）
+pnpm build:cf        # 构建到 dist/ds2jev/
+pnpm deploy:cf       # 构建并 wrangler deploy（需 CF 凭据）
 ```
 
-本地调试用 `wrangler dev`（即 `npm run dev`），密钥放 `.dev.vars`（gitignored）。线上用 `wrangler secret put DS2JEV_API_KEYS` 注入用户 key。
+本地调试用 `wrangler dev`（即 `pnpm dev`），密钥放 `.dev.vars`（gitignored）。线上用 `wrangler secret put DS2JEV_API_KEYS` 注入用户 key。
 
 ### Vercel
 
@@ -50,8 +50,8 @@ push 到 Git 或在仓库根执行 `vercel`；`/v1/systemone` 由 `vercel.json` 
 ### Docker
 
 ```bash
-npm run docker:build
-npm run docker:run     # 需本机已 export DEEPSEEK_API_KEY（用户 key 经 -e DS2JEV_API_KEYS 传入）
+pnpm docker:build
+pnpm docker:run     # 需本机已 export DEEPSEEK_API_KEY（用户 key 经 -e DS2JEV_API_KEYS 传入）
 ```
 
 镜像内为 `vite build --ssr` 产出的单文件 Node 服务，无需 node_modules。
@@ -71,7 +71,7 @@ Cloudflare 本地用 `.dev.vars`，Vercel 用项目环境变量，Docker 用 `-e
 
 ## 技术栈
 
-TypeScript（`tsc 7` 仅类型检查：`npm run typecheck`；运行时由 Node 原生剥离直接跑 `.ts`）、Vitest 5 跑单测与 V8 覆盖率、Vite 8（Rolldown）构建 CF / Node 产物、oxlint（pedantic 类别全开 + `denyWarnings`）+ oxfmt 做 lint / 格式化。
+TypeScript（`tsc 7` 仅类型检查：`pnpm typecheck`；运行时由 Node 原生剥离直接跑 `.ts`）、Vitest 5 跑单测与 V8 覆盖率、Vite 8（Rolldown）构建 CF / Node 产物、oxlint（pedantic 类别全开 + `denyWarnings`）+ oxfmt 做 lint / 格式化。包管理用 pnpm 12（仓库根 `mise.toml` pin 版本，`packageManager` 字段声明精确版本）。
 
 ## 支持的询问类型
 
@@ -113,9 +113,9 @@ TypeScript（`tsc 7` 仅类型检查：`npm run typecheck`；运行时由 Node �
 ## 测试
 
 ```bash
-npm test               # Vitest 单测（离线，无网络）
-npm run test:coverage  # 覆盖率门槛：lines/statements/functions ≥ 90%，branches ≥ 70%
-npm run typecheck      # tsc 7 严格类型检查
-npm run lint           # oxlint（pedantic 全开，warnings 视为失败）
-npm run format:check   # oxfmt 格式检查
+pnpm test            # Vitest 单测（离线，无网络）
+pnpm test:coverage   # 覆盖率门槛：lines/statements/functions ≥ 90%，branches ≥ 70%
+pnpm typecheck       # tsc 7 严格类型检查
+pnpm lint            # oxlint（pedantic 全开，warnings 视为失败）
+pnpm format:check    # oxfmt 格式检查
 ```
