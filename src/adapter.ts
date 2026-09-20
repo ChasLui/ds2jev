@@ -149,7 +149,9 @@ export async function adapt(request: unknown, options: AdaptOptions = {}): Promi
     model,
     body: buildBody(model, buildMessages(validated), options.thinking),
     validated,
-    fetchImpl: options.fetch ?? fetch,
+    // workerd rejects an extracted fetch invoked as a method (`ctx.fetchImpl(...)`) with
+    // "Illegal invocation"; binding up front makes every call form legal.
+    fetchImpl: options.fetch ?? fetch.bind(globalThis),
     signal: options.signal,
     timeoutMs: options.timeoutMs ?? DEFAULT_TIMEOUT_MS,
   };

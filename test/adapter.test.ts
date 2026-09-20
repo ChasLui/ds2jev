@@ -114,3 +114,24 @@ describe("adapt failures", () => {
     );
   });
 });
+
+describe("adapt default fetch invocation", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("binds the default fetch so a method-style call stays legal (workerd semantics)", async () => {
+    // workerd throws "Illegal invocation" when an extracted fetch is invoked as a method
+    // (`ctx.fetchImpl(...)`, this = ctx). Recording the receiver pins the bound call form;
+    // a regression to the bare `fetch` reference fails this assertion.
+    const receivers: unknown[] = [];
+    const recorded = function (this: unknown): Promise<Response> {
+      receivers.push(this);
+      return Promise.resolve(jsonResponse(200, okPayload));
+    };
+    vi.stubGlobal("fetch", recorded);
+    const res = await adapt(request, { apiKey: "k" });
+    expect(res.answers["q"]).toEqual({ type: "noul", noul: 0.7 });
+    expect(receivers[0]).toBe(globalThis);
+  });
+});
