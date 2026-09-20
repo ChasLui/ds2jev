@@ -2,10 +2,11 @@
 
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { parseAccessKeys } from "./http.ts";
 import type { HandlerOptions } from "./http.ts";
 
 export function ensureNodeEnv(): void {
-  if (!process.env["DEEPSEEK_API_KEY"]) {
+  if (!process.env["DEEPSEEK_API_KEY"] || !process.env["DS2JEV_API_KEYS"]) {
     try {
       process.loadEnvFile(join(homedir(), ".env.local"));
     } catch {
@@ -19,5 +20,6 @@ export function resolveNodeOptions(): HandlerOptions {
     apiKey: process.env["DEEPSEEK_API_KEY"],
     baseUrl: process.env["DEEPSEEK_BASE_URL"],
     model: process.env["DEEPSEEK_MODEL"],
+    accessKeys: parseAccessKeys(process.env["DS2JEV_API_KEYS"]),
   };
 }

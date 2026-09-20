@@ -1,6 +1,6 @@
 // Cloudflare Worker entry: POST /v1/systemone -> handleRequest().
 
-import { handleRequest } from "../src/http.ts";
+import { handleRequest, parseAccessKeys } from "../src/http.ts";
 
 export default {
   async fetch(request: Request, env: Record<string, string | undefined>): Promise<Response> {
@@ -12,6 +12,7 @@ export default {
       apiKey: env["DEEPSEEK_API_KEY"],
       baseUrl: env["DEEPSEEK_BASE_URL"],
       model: env["DEEPSEEK_MODEL"],
+      accessKeys: parseAccessKeys(env["DS2JEV_API_KEYS"]),
     });
   },
 };

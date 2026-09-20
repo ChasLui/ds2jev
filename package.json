@@ -22,7 +22,7 @@
     "build:docker": "DS2JEV_TARGET=node vite build --ssr src/serve.ts --outDir dist/node",
     "deploy:cf": "npm run build:cf && wrangler deploy -c dist/ds2jev/wrangler.json",
     "docker:build": "docker build -t ds2jev .",
-    "docker:run": "docker run --rm -p 8787:8787 -e DEEPSEEK_API_KEY ds2jev",
+    "docker:run": "docker run --rm -p 8787:8787 -e DEEPSEEK_API_KEY -e DS2JEV_API_KEYS ds2jev",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage"
   },

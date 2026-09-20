@@ -44,4 +44,9 @@ const port = Number(process.env["PORT"] ?? 8787);
 const host = process.env["HOST"] ?? "127.0.0.1";
 server.listen(port, host, () => {
   process.stdout.write(`ds2jev listening on http://${host}:${port}\n`);
+  if (!process.env["DS2JEV_API_KEYS"]) {
+    process.stderr.write(
+      "warning: DS2JEV_API_KEYS is not set - all HTTP requests will be rejected with 401\n",
+    );
+  }
 });

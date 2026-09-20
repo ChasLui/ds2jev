@@ -6,7 +6,7 @@
 
 ## 前置
 
-需要 `DEEPSEEK_API_KEY`（Node 端在环境变量缺失时会自动尝试从 `~/.env.local` 加载）。
+需要 `DEEPSEEK_API_KEY`（Node 端在环境变量缺失时会自动尝试从 `~/.env.local` 加载）与 `DS2JEV_API_KEYS`（HTTP 服务的用户访问 key，未配置时所有 HTTP 请求返回 401）。
 
 ## CLI
 
@@ -17,15 +17,20 @@ node src/cli.ts request.json          # 或从文件读
 
 选项：`--pretty`（缩进输出）、`--thinking <low|high|max>`（开启思考模式）。
 
+CLI 直连上游，不受 HTTP 鉴权影响。
+
 ## HTTP 服务（Node）
 
 ```bash
-npm start                              # 等价于 node src/serve.ts；PORT 可覆盖端口
+DS2JEV_API_KEYS=k1,k2 npm start        # 等价于 node src/serve.ts；PORT 可覆盖端口
 curl -sS -X POST http://127.0.0.1:8787/v1/systemone \
-  -H 'content-type: application/json' --data @request.json
+  -H 'content-type: application/json' \
+  -H 'authorization: Bearer k1' --data @request.json
 ```
 
-路径 `/v1/systemone` 与官方 SDK 一致，可用 `TYPESAFE_BASE_URL=http://127.0.0.1:8787` 把官方 SDK 指过来。
+请求须带 `Authorization: Bearer <key>`，key 必须命中 `DS2JEV_API_KEYS` 列表，否则一律 401。key 建议用 `openssl rand -hex 24` 生成（低熵 key 可被暴力枚举）。
+
+路径 `/v1/systemone` 与官方 SDK 一致。用户侧用法：`TYPESAFE_API_KEY=<分发的key> TYPESAFE_BASE_URL=<ds2jev 地址>` 即可让官方 SDK 走本服务。
 
 ## 部署
 
@@ -36,17 +41,17 @@ npm run build:cf    # 构建到 dist/ds2jev/
 npm run deploy:cf   # 构建并 wrangler deploy（需 CF 凭据）
 ```
 
-本地调试用 `wrangler dev`（即 `npm run dev`），密钥放 `.dev.vars`（gitignored）。
+本地调试用 `wrangler dev`（即 `npm run dev`），密钥放 `.dev.vars`（gitignored）。线上用 `wrangler secret put DS2JEV_API_KEYS` 注入用户 key。
 
 ### Vercel
 
-push 到 Git 或在仓库根执行 `vercel`；`/v1/systemone` 由 `vercel.json` rewrite 到 `api/systemone.ts`。环境变量（`DEEPSEEK_API_KEY` 等）在 Vercel 项目设置里配置。
+push 到 Git 或在仓库根执行 `vercel`；`/v1/systemone` 由 `vercel.json` rewrite 到 `api/systemone.ts`。环境变量（`DEEPSEEK_API_KEY`、`DS2JEV_API_KEYS` 等）在 Vercel 项目设置里配置。
 
 ### Docker
 
 ```bash
 npm run docker:build
-npm run docker:run     # 需本机已 export DEEPSEEK_API_KEY
+npm run docker:run     # 需本机已 export DEEPSEEK_API_KEY（用户 key 经 -e DS2JEV_API_KEYS 传入）
 ```
 
 镜像内为 `vite build --ssr` 产出的单文件 Node 服务，无需 node_modules。
@@ -56,6 +61,7 @@ npm run docker:run     # 需本机已 export DEEPSEEK_API_KEY
 |变量|说明|
 |---|---|
 |`DEEPSEEK_API_KEY`|必需|
+|`DS2JEV_API_KEYS`|逗号分隔的用户访问 key；**未配置时所有 HTTP 请求返回 401**（fail-closed，仅本地 CLI 不受影响）|
 |`DEEPSEEK_BASE_URL`|API base，默认 `https://api.deepseek.com`|
 |`DEEPSEEK_MODEL`|模型，默认 `deepseek-flash`|
 |`PORT`|Node 服务端口，默认 `8787`|
